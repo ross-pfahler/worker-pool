@@ -1,0 +1,24 @@
+{
+  "name": "worker-pool",
+  "version": "1.0.0",
+  "description": "Pooling and Queuing of Web Workers",
+  "main": "index.js",
+  "scripts": {
+    "test": ""
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ross-pfahler/worker-pool.git"
+  },
+  "keywords": [
+    "web",
+    "worker",
+    "pool"
+  ],
+  "author": "Ross Pfahler",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/ross-pfahler/worker-pool/issues"
+  },
+  "homepage": "https://github.com/ross-pfahler/worker-pool#readme"
+}
