@@ -1,14 +1,18 @@
+var raf = require('./dom').raf;
+
 /**
  * Shared webworkers pool.
  * Spins up n number of workers and distributes a work queue based on
  * availablity of the workers.
  *
- * @param {number} workerCount
- * @param {string} script
+ * @param {Object} options
+ * @param {number} options.workerCount
+ * @param {string} options.workerPath
+ * @param {string} options.iframePath
  * @constructor
  */
-function WorkerPool(workerCount, script) {
-  this.workers = Array(workerCount);
+function WorkerPool(options) {
+  this.workers = Array(options.workerCount);
   this.queuedJobs = [];
   var self = this;
 
@@ -22,13 +26,32 @@ function WorkerPool(workerCount, script) {
 
   var worker;
   for (var i=0; i<workerCount; i++) {
-    worker = new Worker(script);
+    worker = this.createWorker(optiosn.workerPath, options.iframePath);
     worker.running = false;
     worker.ready = false;
     worker.addEventListener('message', onWorkerReady);
     this.workers[i] = worker;
   }
 }
+
+/**
+ * @param {string} workerPath
+ * @param {string} iframePath
+ * @return {Worker|IframeElement}
+ */
+WorkerPool.prototype.createWorker = function (workerPath, iframePath) {
+  if (typeof Worker === 'function') {
+    return new Worker(workerPath);
+  }
+
+  var iframe = document.createElement('iframe');
+  iframe.height = iframe.width = 0;
+  iframe.src = iframePath;
+  raf(function () {
+    document.body.appendChild(iframe);
+  });
+  return iframe;
+};
 
 /**
  * @param {Object} data
@@ -80,7 +103,11 @@ WorkerPool.prototype.maybeDequeueJob = function () {
 WorkerPool.prototype.destroy = function () {
   this.queuedJobs = [];
   this.workers.forEach(function (worker) {
-    worker.terminate();
+    if (worker.terminate) {
+      worker.terminate();
+    } else {
+      worker.parentElement.removeChild(worker);
+    }
   });
   this.workers = [];
 };
