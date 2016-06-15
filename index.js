@@ -25,8 +25,8 @@ function WorkerPool(options) {
   }
 
   var worker;
-  for (var i=0; i<workerCount; i++) {
-    worker = this.createWorker(optiosn.workerPath, options.iframePath);
+  for (var i=0; i<options.workerCount; i++) {
+    worker = this.createWorker(options.workerPath, options.iframePath);
     worker.running = false;
     worker.ready = false;
     worker.addEventListener('message', onWorkerReady);
