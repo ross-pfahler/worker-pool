@@ -17,7 +17,14 @@ function WorkerPool(options) {
   var self = this;
 
   function onWorkerReady(event) {
-    if (event.data.type === 'ack') {
+    var data = event.data;
+    try {
+      data = JSON.parse(data);
+    } catch (e) {
+      // noop
+    }
+
+    if (data.type === 'ack') {
       this.removeEventListener('message', onWorkerReady);
       this.ready = true;
       self.maybeDequeueJob();
@@ -85,10 +92,17 @@ WorkerPool.prototype.maybeDequeueJob = function () {
    * @param {Event} event
    */
   var onMessage = function (index, event) {
+    var data = event.data;
+    try {
+      data = JSON.parse(data);
+    } catch (e) {
+      // noop
+    }
+
     var currentWorker = this.workers[index];
     currentWorker.removeEventListener('message', onMessage);
     currentWorker.running = false;
-    job[1](event);
+    job[1]({data: data});
     this.maybeDequeueJob();
   }.bind(this, i);
 
