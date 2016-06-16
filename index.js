@@ -16,7 +16,32 @@ function WorkerPool(options) {
   this.queuedJobs = [];
   var self = this;
 
-  function onWorkerReady(event) {
+  /**
+   * @param {string} workerPath
+   * @param {string} iframePath
+   * @param {function} onWorkerReady
+   * @return {Worker|IframeElement}
+   */
+  function createWorker(workerPath, iframePath, onWorkerReady) {
+    if (typeof Worker === 'function') {
+      var worker = new Worker(workerPath);
+      worker.onWorkerReady = onWorkerReady.bind(null, worker);
+      worker.addEventListener('message', worker.onWorkerReady);
+      return worker;
+    }
+
+    var iframe = document.createElement('iframe');
+    iframe.height = iframe.width = 0;
+    iframe.onWorkerReady = onWorkerReady.bind(null, iframe);
+    window.addEventListener('message', iframe.onWorkerReady, false);
+    iframe.src = iframePath;
+    raf(function () {
+      document.body.appendChild(iframe);
+    });
+    return iframe;
+  }
+
+  function onWorkerReady(worker, event) {
     var data = event.data;
     try {
       data = JSON.parse(data);
@@ -25,40 +50,24 @@ function WorkerPool(options) {
     }
 
     if (data.type === 'ack') {
-      this.removeEventListener('message', onWorkerReady);
-      this.ready = true;
+      if (typeof Worker === 'function') {
+        worker.removeEventListener('message', worker.onWorkerReady);
+      } else {
+        window.removeEventListener('message', worker.onWorkerReady);
+      }
+      worker.ready = true;
       self.maybeDequeueJob();
     }
   }
 
   var worker;
   for (var i=0; i<options.workerCount; i++) {
-    worker = this.createWorker(options.workerPath, options.iframePath);
+    worker = createWorker(options.workerPath, options.iframePath, onWorkerReady);
     worker.running = false;
     worker.ready = false;
-    worker.addEventListener('message', onWorkerReady);
     this.workers[i] = worker;
   }
 }
-
-/**
- * @param {string} workerPath
- * @param {string} iframePath
- * @return {Worker|IframeElement}
- */
-WorkerPool.prototype.createWorker = function (workerPath, iframePath) {
-  if (typeof Worker === 'function') {
-    return new Worker(workerPath);
-  }
-
-  var iframe = document.createElement('iframe');
-  iframe.height = iframe.width = 0;
-  iframe.src = iframePath;
-  raf(function () {
-    document.body.appendChild(iframe);
-  });
-  return iframe;
-};
 
 /**
  * @param {Object} data
@@ -100,15 +109,26 @@ WorkerPool.prototype.maybeDequeueJob = function () {
     }
 
     var currentWorker = this.workers[index];
-    currentWorker.removeEventListener('message', onMessage);
+    if (typeof Worker === 'function') {
+      currentWorker.removeEventListener('message', onMessage);
+    } else {
+      window.removeEventListener('message', onMessage);
+    }
+
     currentWorker.running = false;
     job[1]({data: data});
     this.maybeDequeueJob();
   }.bind(this, i);
 
   availableWorker.running = true;
-  availableWorker.addEventListener('message', onMessage);
-  availableWorker.postMessage(job[0]);
+
+  if (typeof Worker === 'function') {
+    availableWorker.addEventListener('message', onMessage);
+    availableWorker.postMessage(job[0]);
+  } else {
+    window.addEventListener('message', onMessage, false);
+    availableWorker.contentWindow.postMessage(job[0], '*');
+  }
 };
 
 /**
