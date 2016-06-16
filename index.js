@@ -122,12 +122,13 @@ WorkerPool.prototype.maybeDequeueJob = function () {
 
   availableWorker.running = true;
 
+  var jobData = JSON.stringify(job[0]);
   if (typeof Worker === 'function') {
     availableWorker.addEventListener('message', onMessage);
-    availableWorker.postMessage(job[0]);
+    availableWorker.postMessage(jobData);
   } else {
     window.addEventListener('message', onMessage, false);
-    availableWorker.contentWindow.postMessage(job[0], '*');
+    availableWorker.contentWindow.postMessage(jobData, '*');
   }
 };
 
